@@ -13,6 +13,29 @@ from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
 from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 from torch.backends import cudnn
+import torch
+from torch.utils.data import dataloader
+from torch.multiprocessing import reductions
+from multiprocessing.reduction import ForkingPickler
+
+
+default_collate_func = dataloader.default_collate
+
+
+def default_collate_override(batch):
+    dataloader._use_shared_memory = False
+    return default_collate_func(batch)
+
+
+setattr(dataloader, 'default_collate', default_collate_override)
+
+for t in torch._storage_classes:
+    if sys.version_info[0] == 2:
+        if t in ForkingPickler.dispatch:
+            del ForkingPickler.dispatch[t]
+    else:
+        if t in ForkingPickler._extra_reducers:
+            del ForkingPickler._extra_reducers[t]
 
 
 def find_free_network_port() -> int:
